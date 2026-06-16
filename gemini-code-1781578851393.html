@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>โปรแกรมสร้างรูปสามเหลี่ยม</title>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+            background-color: #f4f7f6;
+            color: #333;
+            margin: 0;
+            padding: 20px 10px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            background: #ffffff;
+            width: 100%;
+            max-width: 500px;
+            padding: 25px;
+            border-radius: 16px;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            box-sizing: border-box;
+        }
+        h2 {
+            text-align: center;
+            color: #2c3e50;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        /* กล่องคำชี้แจงขั้นตอนการใช้งาน */
+        .instructions {
+            background: #e8f4f8;
+            border-left: 4px solid #3498db;
+            padding: 12px 15px;
+            margin-bottom: 20px;
+            border-radius: 0 8px 8px 0;
+            font-size: 14px;
+            color: #2c3e50;
+            line-height: 1.6;
+        }
+        .instructions h4 {
+            margin: 0 0 8px 0;
+            color: #2980b9;
+            font-size: 16px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .instructions ul {
+            margin: 0;
+            padding-left: 22px;
+        }
+        .instructions li {
+            margin-bottom: 4px;
+        }
+        .instructions li:last-child {
+            margin-bottom: 0;
+        }
+
+        .input-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .input-box {
+            flex: 1;
+        }
+        label {
+            display: block;
+            font-size: 14px;
+            font-weight: 600;
+            color: #34495e;
+            margin-bottom: 5px;
+        }
+        input[type="number"] {
+            width: 100%;
+            padding: 10px;
+            font-size: 16px;
+            border: 2px solid #e0e6ed;
+            border-radius: 8px;
+            box-sizing: border-box;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        input[type="number"]:focus {
+            border-color: #3498db;
+        }
+        button {
+            width: 100%;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: 700;
+            color: white;
+            background-color: #3498db;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .error {
+            color: #c0392b;
+            background: #fadbd8;
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+            margin-top: 15px;
+            display: none;
+        }
+        .canvas-container {
+            margin-top: 20px;
+            display: flex;
+            justify-content: center;
+            background: #fdfefe;
+            border: 2px dashed #bdc3c7;
+            border-radius: 12px;
+            padding: 10px;
+        }
+        canvas {
+            max-width: 100%;
+            height: auto;
+        }
+        .results-card {
+            margin-top: 20px;
+            background: #edf2f7;
+            padding: 15px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .results-card h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #2c3e50;
+        }
+        .angles-inline {
+            background: white;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            font-size: clamp(13px, 4vw, 16px);
+            font-weight: 600;
+            color: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+        }
+        .angles-inline span {
+            color: #e67e22;
+        }
+        .divider {
+            color: #bdc3c7;
+            font-weight: 400;
+        }
+        .checkbox-container {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #34495e;
+        }
+        .checkbox-container input {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>สร้างรูปสามเหลี่ยม 📐</h2>
+
+    <div class="instructions">
+        <h4>📌 วิธีใช้งาน</h4>
+        <ul>
+            <li>กรอกความยาวของด้าน <b>a</b>, <b>b</b> และ <b>c</b> ลงในช่องว่าง</li>
+            <li>กดปุ่ม <b>"สร้างรูปสามเหลี่ยม"</b> เพื่อดูภาพจำลองและขนาดของมุม</li>
+            <li>สามารถติ๊กเลือก <b>"แสดงค่ามุมในรูปภาพ"</b> ได้ตามต้องการ</li>
+            <li><i>หมายเหตุ: ผลรวมของความยาว 2 ด้านใดๆ จะต้องมากกว่าด้านที่เหลือเสมอ จึงจะประกอบเป็นรูปสามเหลี่ยมได้</i></li>
+        </ul>
+    </div>
+    
+    <div class="input-group">
+        <div class="input-box">
+            <label for="sideA">ด้าน a</label>
+            <input type="number" id="sideA" placeholder="เช่น 3" step="any" min="0.1">
+        </div>
+        <div class="input-box">
+            <label for="sideB">ด้าน b</label>
+            <input type="number" id="sideB" placeholder="เช่น 4" step="any" min="0.1">
+        </div>
+        <div class="input-box">
+            <label for="sideC">ด้าน c</label>
+            <input type="number" id="sideC" placeholder="เช่น 5" step="any" min="0.1">
+        </div>
+    </div>
+    
+    <button onclick="generate()">สร้างรูปสามเหลี่ยม</button>
+    <div id="errorMsg" class="error">ความยาวด้านที่กำหนด ไม่สามารถประกอบเป็นรูปสามเหลี่ยมได้</div>
+
+    <div class="canvas-container">
+        <canvas id="triCanvas" width="600" height="600"></canvas>
+    </div>
+
+    <div class="results-card" id="resultsArea" style="display: none;">
+        <h3>ขนาดของมุม</h3>
+        <div class="angles-inline">
+            A = <span id="valA">0</span>° 
+            <span class="divider">|</span> 
+            B = <span id="valB">0</span>° 
+            <span class="divider">|</span> 
+            C = <span id="valC">0</span>°
+        </div>
+        <label class="checkbox-container">
+            <input type="checkbox" id="showAngles" onchange="generate()">
+            แสดงค่ามุมในรูปภาพ
+        </label>
+    </div>
+</div>
+
+<script>
+    function generate() {
+        const a = parseFloat(document.getElementById('sideA').value);
+        const b = parseFloat(document.getElementById('sideB').value);
+        const c = parseFloat(document.getElementById('sideC').value);
+        const errorMsg = document.getElementById('errorMsg');
+        const resultsArea = document.getElementById('resultsArea');
+        const canvas = document.getElementById('triCanvas');
+        const ctx = canvas.getContext('2d');
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        errorMsg.style.display = 'none';
+
+        if (!a || !b || !c || (a + b <= c) || (a + c <= b) || (b + c <= a)) {
+            if(a || b || c) errorMsg.style.display = 'block';
+            resultsArea.style.display = 'none';
+            return;
+        }
+
+        const angleA_rad = Math.acos((b*b + c*c - a*a) / (2*b*c));
+        const angleB_rad = Math.acos((a*a + c*c - b*b) / (2*a*c));
+        const angleC_rad = Math.acos((a*a + b*b - c*c) / (2*a*b));
+
+        const degA = (angleA_rad * 180 / Math.PI).toFixed(2);
+        const degB = (angleB_rad * 180 / Math.PI).toFixed(2);
+        const degC = (angleC_rad * 180 / Math.PI).toFixed(2);
+
+        document.getElementById('valA').innerText = degA;
+        document.getElementById('valB').innerText = degB;
+        document.getElementById('valC').innerText = degC;
+        resultsArea.style.display = 'block';
+
+        const ptA = { x: 0, y: 0 };
+        const ptB = { x: c, y: 0 };
+        const ptC = { x: b * Math.cos(angleA_rad), y: b * Math.sin(angleA_rad) };
+
+        const minX = Math.min(ptA.x, ptB.x, ptC.x);
+        const maxX = Math.max(ptA.x, ptB.x, ptC.x);
+        const minY = Math.min(ptA.y, ptB.y, ptC.y);
+        const maxY = Math.max(ptA.y, ptB.y, ptC.y);
+
+        const triWidth = maxX - minX;
+        const triHeight = Math.max(maxY - minY, 0.001);
+
+        const padding = 120;
+        const scale = Math.min((canvas.width - padding*2) / triWidth, (canvas.height - padding*2) / triHeight);
+
+        const offsetX = (canvas.width - (triWidth * scale)) / 2 - (minX * scale);
+        const offsetY = (canvas.height - (triHeight * scale)) / 2 - (minY * scale);
+
+        const mapX = (x) => x * scale + offsetX;
+        const mapY = (y) => canvas.height - (y * scale + offsetY);
+
+        const drawA = { x: mapX(ptA.x), y: mapY(ptA.y) };
+        const drawB = { x: mapX(ptB.x), y: mapY(ptB.y) };
+        const drawC = { x: mapX(ptC.x), y: mapY(ptC.y) };
+
+        ctx.beginPath();
+        ctx.moveTo(drawA.x, drawA.y);
+        ctx.lineTo(drawB.x, drawB.y);
+        ctx.lineTo(drawC.x, drawC.y);
+        ctx.closePath();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#2c3e50'; 
+        ctx.fillStyle = 'rgba(236, 240, 241, 0.7)'; 
+        ctx.fill();
+        ctx.stroke();
+
+        const centroid = { 
+            x: (drawA.x + drawB.x + drawC.x) / 3, 
+            y: (drawA.y + drawB.y + drawC.y) / 3 
+        };
+
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+
+        const drawVertexLabel = (pt, label) => {
+            const dx = pt.x - centroid.x;
+            const dy = pt.y - centroid.y;
+            const len = Math.hypot(dx, dy);
+            const offset = 45; 
+            ctx.font = 'bold 30px Sarabun, sans-serif'; 
+            ctx.fillStyle = '#c0392b'; 
+            ctx.fillText(label, pt.x + (dx/len)*offset, pt.y + (dy/len)*offset);
+        };
+
+        drawVertexLabel(drawA, 'A');
+        drawVertexLabel(drawB, 'B');
+        drawVertexLabel(drawC, 'C');
+
+        const drawSideLabel = (p1, p2, text) => {
+            const midX = (p1.x + p2.x) / 2;
+            const midY = (p1.y + p2.y) / 2;
+            const dx = midX - centroid.x;
+            const dy = midY - centroid.y;
+            const len = Math.hypot(dx, dy);
+            const offset = 40; 
+            
+            ctx.font = 'bold 24px Sarabun, sans-serif'; 
+            ctx.fillStyle = '#2980b9'; 
+            
+            ctx.shadowColor = "white";
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetX = 0;
+            ctx.shadowOffsetY = 0;
+            
+            ctx.fillText(text, midX + (dx/len)*offset, midY + (dy/len)*offset);
+            
+            ctx.shadowBlur = 0;
+        };
+
+        drawSideLabel(drawA, drawB, `c=${c}`);
+        drawSideLabel(drawB, drawC, `a=${a}`);
+        drawSideLabel(drawA, drawC, `b=${b}`);
+
+        const showAngles = document.getElementById('showAngles').checked;
+        if (showAngles) {
+            const drawInnerAngle = (pt, text) => {
+                const dx = centroid.x - pt.x;
+                const dy = centroid.y - pt.y;
+                const len = Math.hypot(dx, dy);
+                const pull = 55; 
+                
+                ctx.font = 'bold 20px Sarabun, sans-serif'; 
+                ctx.fillStyle = '#27ae60'; 
+                ctx.fillText(text + '°', pt.x + (dx/len)*pull, pt.y + (dy/len)*pull);
+            };
+
+            drawInnerAngle(drawA, degA);
+            drawInnerAngle(drawB, degB);
+            drawInnerAngle(drawC, degC);
+        }
+    }
+</script>
+
+</body>
+</html>
