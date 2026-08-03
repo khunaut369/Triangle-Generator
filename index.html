@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>สื่อการเรียนรู้ 3 มิติ: รูปทรงปริซึม (ม.2)</title>
+    <style>
+        * { box-sizing: border-box; }
+        
+        html, body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%; 
+            height: 100dvh; 
+            overflow: hidden; 
+            background-color: #f4f7fb;
+            font-family: 'Sarabun', 'Segoe UI', Tahoma, sans-serif;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: #ffffff;
+            padding: 12px 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            text-align: center;
+            z-index: 10;
+            flex-shrink: 0; 
+        }
+        header h1 {
+            margin: 0;
+            font-size: 20px;
+            color: #2c3e50;
+        }
+        header p {
+            margin: 2px 0 0 0;
+            font-size: 13px;
+            color: #7f8c8d;
+        }
+
+        #canvas-container {
+            flex: 1; 
+            width: 100%;
+            min-height: 0; 
+            position: relative;
+            touch-action: none; 
+            overflow: hidden;
+        }
+        
+        canvas {
+            display: block;
+            outline: none;
+        }
+
+        footer {
+            background: #ffffff;
+            padding: 15px;
+            box-shadow: 0 -2px 15px rgba(0,0,0,0.08);
+            border-top-left-radius: 20px;
+            border-top-right-radius: 20px;
+            z-index: 10;
+            flex-shrink: 0; 
+        }
+
+        .instruction {
+            text-align: center;
+            font-size: 14px;
+            color: #34495e;
+            margin-bottom: 12px;
+            background: #e8f4f8;
+            padding: 8px;
+            border-radius: 10px;
+        }
+
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 28px;
+        }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 28px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px; width: 20px;
+            left: 4px; bottom: 4px;
+            background-color: white;
+            transition: .3s;
+            border-radius: 50%;
+        }
+        input:checked + .slider { background-color: #2196F3; }
+        input:checked + .slider:before { transform: translateX(22px); }
+
+    </style>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body>
+
+    <header>
+        <h1>🧊 "ลอง" สำรวจ "ดู"</h1>
+        <p>คณิตศาสตร์ ชั้นมัธยมศึกษาปีที่ 2</p>
+    </header>
+
+    <div id="canvas-container"></div>
+
+    <footer>
+        <div class="instruction">
+            👆 <b>วิธีใช้:</b> แตะที่รูปทรงค้างไว้แล้วลาก เพื่อหมุนดูรอบๆ
+        </div>
+        <div class="toggle-container">
+            <label class="switch">
+                <input type="checkbox" id="xray-toggle">
+                <span class="slider"></span>
+            </label>
+            <span>เปิดโหมดมองทะลุ (X-Ray)</span>
+        </div>
+    </footer>
+
+    <script>
+        const container = document.getElementById('canvas-container');
+
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(45, container.clientWidth / container.clientHeight, 0.1, 1000);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(container.clientWidth, container.clientHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); 
+        container.appendChild(renderer.domElement);
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.75);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+        directionalLight.position.set(10, 20, 15);
+        scene.add(directionalLight);
+
+        const interactableObjects = [];
+
+        function addEdges(mesh) {
+            const edgesGeometry = new THREE.EdgesGeometry(mesh.geometry);
+            
+            // 1. เส้นทึบสำหรับด้านหน้า
+            const solidMaterial = new THREE.LineBasicMaterial({ 
+                color: 0x222222, 
+                linewidth: 2,
+                transparent: true, 
+                opacity: 1.0,
+                depthWrite: false
+            });
+            const solidLines = new THREE.LineSegments(edgesGeometry, solidMaterial);
+            solidLines.renderOrder = 2; 
+            
+            // 2. เส้นประขาดๆ สำหรับด้านหลัง
+            const dashedMaterial = new THREE.LineDashedMaterial({ 
+                color: 0x222222, 
+                linewidth: 1,
+                dashSize: 0.25, // ความยาวของรอยประ
+                gapSize: 0.25,  // ความยาวของช่องโหว่
+                depthFunc: THREE.GreaterDepth, // หัวใจสำคัญที่ 1: วาดเฉพาะตอนโดนบัง
+                depthWrite: false, 
+                transparent: true,
+                opacity: 0.9
+            });
+            
+            const dashedLines = new THREE.LineSegments(edgesGeometry.clone(), dashedMaterial);
+            dashedLines.computeLineDistances(); // คำนวณรอยขาด
+            dashedLines.renderOrder = 3; 
+            dashedLines.visible = false; 
+
+            mesh.userData.dashedLines = dashedLines;
+            
+            mesh.add(solidLines);
+            mesh.add(dashedLines);
+        }
+
+        // หัวใจสำคัญที่ 2: ใช้ polygonOffset ดันผิววัตถุให้ถอยหลังไป 1 ขั้นในระบบประมวลผล 
+        // ป้องกันไม่ให้เส้นประและเส้นทึบเกิดอาการตีกัน (Z-fighting)
+        const materialConfig = { 
+            roughness: 0.2, 
+            metalness: 0.1, 
+            depthWrite: true, 
+            transparent: true, 
+            opacity: 1.0,
+            polygonOffset: true,       // เปิดใช้งานการดันผิว
+            polygonOffsetFactor: 1.0,  // ปัจจัยการดัน
+            polygonOffsetUnits: 1.0    // หน่วยการดัน
+        }; 
+
+        // 1. ปริซึมสี่เหลี่ยมยาว (ความสูง 6)
+        const boxGeometry = new THREE.BoxGeometry(2.2, 6, 2.2);
+        const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xff6b6b, ...materialConfig });
+        const box = new THREE.Mesh(boxGeometry, boxMaterial);
+        box.renderOrder = 1; 
+        addEdges(box);
+        scene.add(box);
+        interactableObjects.push(box);
+
+        // 2. ปริซึมสามเหลี่ยม (ความสูง 4)
+        const triGeometry = new THREE.CylinderGeometry(1.6, 1.6, 4, 3);
+        const triMaterial = new THREE.MeshStandardMaterial({ color: 0x4ecdc4, ...materialConfig });
+        const tri = new THREE.Mesh(triGeometry, triMaterial);
+        tri.renderOrder = 1;
+        tri.rotation.y = Math.PI / 2; 
+        addEdges(tri);
+        scene.add(tri);
+        interactableObjects.push(tri);
+
+        // 3. ปริซึมหกเหลี่ยม (ความสูง 5)
+        const hexGeometry = new THREE.CylinderGeometry(1.6, 1.6, 5, 6);
+        const hexMaterial = new THREE.MeshStandardMaterial({ color: 0x45b7d1, ...materialConfig });
+        const hex = new THREE.Mesh(hexGeometry, hexMaterial);
+        hex.renderOrder = 1;
+        addEdges(hex);
+        scene.add(hex);
+        interactableObjects.push(hex);
+
+        function updateLayout() {
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            if (width === 0 || height === 0) return;
+
+            camera.aspect = width / height;
+            camera.updateProjectionMatrix();
+            renderer.setSize(width, height);
+
+            if (width < height) { 
+                box.position.set(0, 6.2, 0); 
+                tri.position.set(0, 0, 0);
+                hex.position.set(0, -5.7, 0);
+                camera.position.set(0, 0, 24); 
+            } else {
+                box.position.set(-6, 0, 0);
+                tri.position.set(0, 0, 0);
+                hex.position.set(6, 0, 0);
+                camera.position.set(0, 0, 16);
+            }
+        }
+        
+        window.addEventListener('load', updateLayout);
+        window.addEventListener('resize', updateLayout);
+
+        // ระบบสวิตช์ X-Ray
+        const xrayToggle = document.getElementById('xray-toggle');
+        xrayToggle.addEventListener('change', (e) => {
+            const isTransparent = e.target.checked;
+            interactableObjects.forEach(mesh => {
+                // ทำให้สีตัวรูปทรงจางลงเพื่อให้เส้นประโดดเด่นขึ้น
+                mesh.material.opacity = isTransparent ? 0.2 : 1.0; 
+                if (mesh.userData.dashedLines) {
+                    mesh.userData.dashedLines.visible = isTransparent;
+                }
+            });
+        });
+
+        // ระบบหมุน
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        let isDragging = false;
+        let selectedObject = null;
+        let previousPosition = { x: 0, y: 0 };
+
+        const xAxis = new THREE.Vector3(1, 0, 0);
+        const yAxis = new THREE.Vector3(0, 1, 0);
+
+        function getPointer(event) {
+            const rect = container.getBoundingClientRect();
+            let clientX = event.clientX !== undefined ? event.clientX : event.touches[0].clientX;
+            let clientY = event.clientY !== undefined ? event.clientY : event.touches[0].clientY;
+            return { x: clientX - rect.left, y: clientY - rect.top };
+        }
+
+        function onPointerDown(event) {
+            if (event.touches && event.touches.length > 1) return;
+            
+            const pointer = getPointer(event);
+            mouse.x = (pointer.x / container.clientWidth) * 2 - 1;
+            mouse.y = -(pointer.y / container.clientHeight) * 2 + 1;
+
+            raycaster.setFromCamera(mouse, camera);
+            const intersects = raycaster.intersectObjects(interactableObjects);
+
+            if (intersects.length > 0) {
+                isDragging = true;
+                selectedObject = intersects[0].object;
+                previousPosition = pointer;
+            }
+        }
+
+        function onPointerMove(event) {
+            if (isDragging && selectedObject) {
+                if(event.cancelable) event.preventDefault(); 
+                const pointer = getPointer(event);
+                const deltaMove = { x: pointer.x - previousPosition.x, y: pointer.y - previousPosition.y };
+
+                selectedObject.rotateOnWorldAxis(yAxis, deltaMove.x * 0.008);
+                selectedObject.rotateOnWorldAxis(xAxis, deltaMove.y * 0.008);
+
+                previousPosition = pointer;
+            }
+        }
+
+        function onPointerUp() {
+            isDragging = false;
+            selectedObject = null;
+        }
+
+        container.addEventListener('mousedown', onPointerDown);
+        window.addEventListener('mousemove', onPointerMove);
+        window.addEventListener('mouseup', onPointerUp);
+        
+        container.addEventListener('touchstart', onPointerDown, { passive: false });
+        window.addEventListener('touchmove', onPointerMove, { passive: false });
+        window.addEventListener('touchend', onPointerUp);
+
+        // Animation
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+        }
+        animate();
+
+    </script>
+</body>
+</html>
