@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>จำลองการคลี่ทรงกระบอก</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        body { 
+            font-family: 'Sarabun', sans-serif; 
+            margin: 0; 
+            overflow: hidden; 
+            background-color: #e5e7eb; 
+            touch-action: none; 
+        }
+        #canvas-container { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 1; 
+        }
+        #ui-layer { 
+            position: absolute; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            height: 100%; 
+            z-index: 10; 
+            pointer-events: none; 
+            display: flex; 
+            flex-direction: column; 
+            justify-content: space-between; 
+        }
+        .pointer-events-auto { pointer-events: auto; }
+        
+        /* Custom Range Slider */
+        input[type=range] {
+            -webkit-appearance: none; 
+            width: 100%; 
+            background: transparent;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none; 
+            height: 28px; 
+            width: 28px; 
+            border-radius: 50%;
+            background: #2563EB; 
+            cursor: pointer; 
+            margin-top: -10px; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+            border: 2px solid white;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%; 
+            height: 8px; 
+            cursor: pointer; 
+            background: #cbd5e1; 
+            border-radius: 4px;
+        }
+        input[type=range]:focus { outline: none; }
+        input[type=range]::-webkit-slider-runnable-track {
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div id="canvas-container"></div>
+    
+    <div id="ui-layer" class="p-4 md:p-6 md:py-8">
+        <!-- ส่วนหัวข้อความและปุ่ม -->
+        <div class="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 max-w-md mx-auto w-full text-center border border-gray-100">
+            <h1 class="text-2xl font-semibold text-gray-800 mb-2">จำลองการคลี่ทรงกระบอก</h1>
+            <p class="text-sm text-gray-600 mb-5 leading-relaxed">วิธีใช้งาน: เลื่อนแถบด้านล่างเพื่อคลี่รูปทรง ใช้ 1 นิ้วเพื่อหมุน และใช้ 2 นิ้วเพื่อเลื่อนจอ (Pan)</p>
+            
+            <div class="grid grid-cols-3 gap-2">
+                <button id="btn-all" class="btn-mode active bg-blue-600 text-white text-xs md:text-sm py-2 px-1 rounded-xl shadow-sm transition hover:bg-blue-700 font-medium">แสดงฝาทั้งหมด</button>
+                <button id="btn-hide-top" class="btn-mode bg-gray-100 text-gray-700 text-xs md:text-sm py-2 px-1 rounded-xl shadow-sm transition hover:bg-gray-200 font-medium border border-gray-200">ซ่อนฝาบน</button>
+                <button id="btn-hide-both" class="btn-mode bg-gray-100 text-gray-700 text-xs md:text-sm py-2 px-1 rounded-xl shadow-sm transition hover:bg-gray-200 font-medium border border-gray-200">ซ่อนฝาบน-ล่าง</button>
+            </div>
+        </div>
+
+        <!-- แถบเลื่อนการคลี่ -->
+        <div class="pointer-events-auto bg-white/95 backdrop-blur-sm rounded-2xl shadow-lg p-5 max-w-md mx-auto w-full mb-2 md:mb-4 border border-gray-100">
+            <label for="unfoldSlider" class="block text-sm font-semibold text-gray-800 mb-4 text-center">ระดับการคลี่</label>
+            <input type="range" id="unfoldSlider" min="0" max="100" value="0">
+            <div class="flex justify-between text-xs text-gray-500 mt-3 font-medium px-1">
+                <span>รูปทรงกระบอก</span>
+                <span>คลี่ออกทั้งหมด</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+    <script type="module">
+        import * as THREE from 'three';
+        import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+        // 1. ตั้งค่า Scene 
+        const container = document.getElementById('canvas-container');
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color('#e5e7eb'); 
+        
+        // แก้ไข: ดันระยะหมอกให้ไกลขึ้นไปอีก เริ่มที่ 60 และทึบที่ 180 เพื่อรองรับการซูมออกมากๆ
+        scene.fog = new THREE.Fog('#e5e7eb', 60, 180);
+
+        // แก้ไข: เพิ่มระยะการมองเห็นของกล้อง (far clipping plane) เป็น 300
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
+        camera.position.set(0, 6, 25);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        container.appendChild(renderer.domElement);
+
+        // การควบคุมกล้อง
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.enablePan = true; 
+        controls.minDistance = 8;
+        // แก้ไข: ปรับระยะซูมออกสูงสุดให้ไกลขึ้นจาก 35 เป็น 70
+        controls.maxDistance = 70; 
+        controls.maxPolarAngle = Math.PI / 2 + 0.1;
+
+        // 2. ตั้งค่าแสงเงา (ปรับให้สว่างขึ้น)
+        // แก้ไข: เพิ่ม Ambient Light จาก 0.65 เป็น 0.95 เพื่อให้เงาไม่มืดเกินไป
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+        scene.add(ambientLight);
+
+        // แก้ไข: เพิ่มความสว่าง Directional Light หลัก จาก 0.85 เป็น 1.2
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        dirLight.position.set(8, 15, 10);
+        dirLight.castShadow = true;
+        dirLight.shadow.mapSize.width = 2048;
+        dirLight.shadow.mapSize.height = 2048;
+        dirLight.shadow.camera.near = 0.5;
+        dirLight.shadow.camera.far = 100; // ขยายขอบเขตการสร้างเงา
+        dirLight.shadow.camera.left = -25;
+        dirLight.shadow.camera.right = 25;
+        dirLight.shadow.camera.top = 25;
+        dirLight.shadow.camera.bottom = -25;
+        dirLight.shadow.bias = -0.001;
+        scene.add(dirLight);
+
+        // แก้ไข: เพิ่มแสงเสริมจากด้านหลัง จาก 0.4 เป็น 0.7 เพื่อลดความมืดในมุมอับ
+        const backLight = new THREE.DirectionalLight(0xffffff, 0.7);
+        backLight.position.set(-8, 5, -10);
+        scene.add(backLight);
+
+        // แก้ไข: ขยายขนาดพื้นให้กว้างขึ้นเป็น 300x300 ให้รองรับระยะหมอกที่ไกลขึ้น
+        const floorGeo = new THREE.PlaneGeometry(300, 300);
+        const floorMat = new THREE.MeshStandardMaterial({ color: '#d1d5db', depthWrite: false });
+        const floor = new THREE.Mesh(floorGeo, floorMat);
+        floor.rotation.x = -Math.PI / 2;
+        floor.position.y = -5;
+        floor.receiveShadow = true;
+        scene.add(floor);
+
+        // 3. สร้าง Textures สำหรับโมเดล
+        function createTextures() {
+            const colorLateral = '#FFCA28';
+            const colorLid = '#29B6F6';    
+            const colorBorder = '#0D47A1'; 
+            const colorSeam = '#D32F2F';   
+            
+            // Texture ผิวข้าง (Lateral)
+            const latCanvas = document.createElement('canvas');
+            latCanvas.width = 2048;
+            latCanvas.height = 1024;
+            const lctx = latCanvas.getContext('2d');
+            
+            lctx.fillStyle = colorLateral; 
+            lctx.fillRect(0, 0, 2048, 1024);
+            
+            const borderThickness = 32; 
+            lctx.fillStyle = colorBorder;
+            lctx.fillRect(0, 0, 2048, borderThickness);
+            lctx.fillRect(0, 1024 - borderThickness, 2048, borderThickness);
+            
+            const seamThickness = 24;
+            lctx.fillStyle = colorSeam;
+            lctx.fillRect(0, 0, seamThickness, 1024);
+            lctx.fillRect(2048 - seamThickness, 0, seamThickness, 1024);
+
+            const latTex = new THREE.CanvasTexture(latCanvas);
+            latTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            
+            // Texture ฝา (Lid)
+            const lidCanvas = document.createElement('canvas');
+            lidCanvas.width = 1024;
+            lidCanvas.height = 1024;
+            const cctx = lidCanvas.getContext('2d');
+            
+            cctx.fillStyle = colorBorder; 
+            cctx.beginPath();
+            cctx.arc(512, 512, 512, 0, Math.PI * 2);
+            cctx.fill();
+            
+            const lidBorderThickness = 48; 
+            cctx.fillStyle = colorLid; 
+            cctx.beginPath();
+            cctx.arc(512, 512, 512 - lidBorderThickness, 0, Math.PI * 2);
+            cctx.fill();
+            
+            const lidTex = new THREE.CanvasTexture(lidCanvas);
+            lidTex.anisotropy = renderer.capabilities.getMaxAnisotropy();
+            
+            return { latTex, lidTex };
+        }
+
+        // 4. การสร้างตัวทรงกระบอกและฝา
+        const R = 2.5; 
+        const H = 7.5; 
+        const W = 2 * Math.PI * R; 
+
+        const { latTex, lidTex } = createTextures();
+
+        const latMat = new THREE.MeshStandardMaterial({ 
+            map: latTex, 
+            side: THREE.DoubleSide, 
+            roughness: 0.7, 
+            metalness: 0.1 
+        });
+        const lidMat = new THREE.MeshStandardMaterial({ 
+            map: lidTex, 
+            side: THREE.DoubleSide, 
+            roughness: 0.7, 
+            metalness: 0.1 
+        });
+
+        const mainGroup = new THREE.Group();
+        scene.add(mainGroup);
+
+        const planeGeo = new THREE.PlaneGeometry(W, H, 128, 1);
+        const posAttribute = planeGeo.attributes.position;
+        const originalPositions = [];
+        
+        for(let i = 0; i < posAttribute.count; i++) {
+            originalPositions.push(new THREE.Vector3().fromBufferAttribute(posAttribute, i));
+        }
+
+        const lateralMesh = new THREE.Mesh(planeGeo, latMat);
+        lateralMesh.castShadow = true;
+        lateralMesh.receiveShadow = true;
+        
+        const offsetGroup = new THREE.Group();
+        offsetGroup.add(lateralMesh);
+        mainGroup.add(offsetGroup);
+
+        // --- สร้างฝาบน ---
+        const topLidGroup = new THREE.Group();
+        topLidGroup.position.set(0, H/2, 0);
+        const lidGeo = new THREE.CircleGeometry(R, 64);
+        const topLidMesh = new THREE.Mesh(lidGeo, lidMat);
+        topLidMesh.position.set(0, R, 0); 
+        topLidGroup.add(topLidMesh);
+        topLidMesh.castShadow = true;
+        topLidMesh.receiveShadow = true;
+
+        // --- สร้างฝาล่าง ---
+        const bottomLidGroup = new THREE.Group();
+        bottomLidGroup.position.set(0, -H/2, 0);
+        const bottomLidMesh = new THREE.Mesh(lidGeo, lidMat);
+        bottomLidMesh.position.set(0, -R, 0); 
+        bottomLidGroup.add(bottomLidMesh);
+        bottomLidMesh.castShadow = true;
+        bottomLidMesh.receiveShadow = true;
+
+        offsetGroup.add(topLidGroup);
+        offsetGroup.add(bottomLidGroup);
+
+        // 5. ฟังก์ชันคำนวณการคลี่
+        function updateUnfold(t) {
+            let alpha = 1.0 - t;
+            if(alpha < 0.001) alpha = 0.001; 
+
+            const R_alpha = R / alpha;
+
+            for(let i = 0; i < posAttribute.count; i++) {
+                const orig = originalPositions[i];
+                const X = orig.x;
+                const Y = orig.y;
+
+                const theta = X / R_alpha; 
+                
+                const x = R_alpha * Math.sin(theta);
+                const z = R_alpha * (1 - Math.cos(theta));
+
+                posAttribute.setXYZ(i, x, Y, z);
+            }
+            posAttribute.needsUpdate = true;
+            planeGeo.computeVertexNormals();
+
+            const theta_lid = (Math.PI / 2) * alpha;
+            topLidGroup.rotation.x = theta_lid;
+            bottomLidGroup.rotation.x = -theta_lid;
+
+            offsetGroup.position.z = -R * alpha;
+        }
+
+        // 6. จัดการ UI
+        const slider = document.getElementById('unfoldSlider');
+        slider.addEventListener('input', (e) => {
+            updateUnfold(e.target.value / 100);
+        });
+
+        const btnAll = document.getElementById('btn-all');
+        const btnHideTop = document.getElementById('btn-hide-top');
+        const btnHideBoth = document.getElementById('btn-hide-both');
+
+        function updateButtonUI(activeBtn) {
+            [btnAll, btnHideTop, btnHideBoth].forEach(b => {
+                b.classList.remove('bg-blue-600', 'text-white', 'border-transparent');
+                b.classList.add('bg-gray-100', 'text-gray-700', 'border-gray-200');
+            });
+            activeBtn.classList.remove('bg-gray-100', 'text-gray-700', 'border-gray-200');
+            activeBtn.classList.add('bg-blue-600', 'text-white', 'border-transparent');
+        }
+
+        btnAll.addEventListener('click', () => {
+            topLidGroup.visible = true;
+            bottomLidGroup.visible = true;
+            updateButtonUI(btnAll);
+        });
+
+        btnHideTop.addEventListener('click', () => {
+            topLidGroup.visible = false;
+            bottomLidGroup.visible = true;
+            updateButtonUI(btnHideTop);
+        });
+
+        btnHideBoth.addEventListener('click', () => {
+            topLidGroup.visible = false;
+            bottomLidGroup.visible = false;
+            updateButtonUI(btnHideBoth);
+        });
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        updateUnfold(0);
+
+        // 7. Render Loop
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update();
+            renderer.render(scene, camera);
+        }
+        animate();
+    </script>
+</body>
+</html>
